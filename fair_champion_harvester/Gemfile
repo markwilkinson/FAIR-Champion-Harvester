@@ -1,0 +1,48 @@
+# frozen_string_literal: true
+
+source "https://rubygems.org"
+ruby "~> 3.2"
+
+# Specify your gem's dependencies in fair_champion_harvester.gemspec
+gemspec
+
+gem "irb"
+gem "rake", "~> 13.0"
+
+gem "rubocop", "~> 1.21"
+gem "bcrypt"
+gem "connection_pool", "~> 2.4", "< 3.0"
+gem "debase", git: "https://github.com/ruby-debug/debase.git", tag: "v0.2.5.beta2"
+gem "json", "~> 2.7.1"
+gem "json-canonicalization", "~> 1.0.0"
+gem "jsonpath", "~> 1.1"
+gem "linkeddata", "~> 3.1"
+gem "multi_json", "1.15.0" # exact version to force it
+gem "nokogiri", "1.18.10" # exact version from your lockfile, or "~> 1.18.8"
+gem "parseconfig", "~> 1.1.2"
+gem "rdf-raptor", "~> 3.2.0"
+gem "rdf-vocab"
+gem "require_all", "~> 3.0.0"
+gem "ruby-debug-ide"
+gem "shotgun"
+gem "xml-simple", "~> 1.1.8"
+
+group :development, :test do
+  gem "dotenv", "~> 2.8" # Add dotenv for local environment variables
+end
+
+group :test do
+  gem "rack-test", "~> 2.1.0"
+  gem "rspec", "~> 3.13.1"
+  gem "simplecov", "~> 0.22.0", require: false
+  gem "webmock", "~> 3.18"
+end
+gem "base64", "~> 0.3.0"
+
+gem "triple_easy", "~> 0.1.0"
+
+gem "rest-client", "~> 2.1"
+
+gem "http", "~> 6.0"
+
+gem "uri", "~> 1.1"
