@@ -1,15 +1,6 @@
-# frozen_string_literal: true
-
 source "https://rubygems.org"
-ruby "~> 3.2"
 
-# Specify your gem's dependencies in fair_champion_harvester.gemspec
 gemspec
-
-gem "irb"
-gem "rake", "~> 13.0"
-
-gem "rubocop", "~> 1.21"
 gem "bcrypt"
 gem "connection_pool", "~> 2.4", "< 3.0"
 gem "debase", git: "https://github.com/ruby-debug/debase.git", tag: "v0.2.5.beta2"
@@ -18,14 +9,31 @@ gem "json-canonicalization", "~> 1.0.0"
 gem "jsonpath", "~> 1.1"
 gem "linkeddata", "~> 3.1"
 gem "multi_json", "1.15.0" # exact version to force it
+# gem 'net-http-persistent', '~> 3.0'
 gem "nokogiri", "1.18.10" # exact version from your lockfile, or "~> 1.18.8"
+# gem 'oj', '~> 3.16'
+gem "openapi3_parser", "~> 0.9.2"
 gem "parseconfig", "~> 1.1.2"
+gem "puma", "~> 6.4"
+gem "rake", "~> 13.0"
 gem "rdf-raptor", "~> 3.2.0"
 gem "rdf-vocab"
 gem "require_all", "~> 3.0.0"
+gem "rest-client", "~> 2.1.0"
+gem "rubocop"
 gem "ruby-debug-ide"
 gem "shotgun"
+gem "sinatra", "~> 2.2"
+gem "sinatra-cross_origin"
+gem "swagger-blocks", "~> 3.0.0"
 gem "xml-simple", "~> 1.1.8"
+
+gem "base64", "~> 0.3.0"
+
+gem "triple_easy", "~> 0.1.0"
+
+gem "fair_champion_harvester", "~> 0.1.0"
+gem "ftr_ruby", "~>0.1.2"
 
 group :development, :test do
   gem "dotenv", "~> 2.8" # Add dotenv for local environment variables
@@ -37,12 +45,3 @@ group :test do
   gem "simplecov", "~> 0.22.0", require: false
   gem "webmock", "~> 3.18"
 end
-gem "base64", "~> 0.3.0"
-
-gem "triple_easy", "~> 0.1.0"
-
-gem "rest-client", "~> 2.1"
-
-gem "http", "~> 6.0"
-
-gem "uri", "~> 1.1"
