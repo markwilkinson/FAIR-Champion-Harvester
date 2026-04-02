@@ -36,26 +36,19 @@ Gem::Specification.new do |spec|
   # Only put gems here that your library actually needs at runtime.
 
   spec.add_runtime_dependency "base64", "~> 0.3"
-  spec.add_runtime_dependency "bcrypt" # if your code actually uses BCrypt directly
   spec.add_runtime_dependency "connection_pool", "~> 2.4", "< 3.0"
-  spec.add_runtime_dependency "ftr_ruby", "~> 0.1.6"
   spec.add_runtime_dependency "http", "~> 6.0"
   spec.add_runtime_dependency "json", "~> 2.7"
   spec.add_runtime_dependency "json-canonicalization", "~> 1.0"
   spec.add_runtime_dependency "jsonpath", "~> 1.1"
   spec.add_runtime_dependency "linkeddata", "~> 3.1"
-  spec.add_runtime_dependency "multi_json", "1.15.0"
+  spec.add_runtime_dependency "multi_json", "~> 1.15"
   spec.add_runtime_dependency "nokogiri", "1.18.10"
-  spec.add_runtime_dependency "openapi3_parser", "~> 0.9"
   spec.add_runtime_dependency "parseconfig", "~> 1.1"
-  spec.add_runtime_dependency "puma", "~> 6.4"
   spec.add_runtime_dependency "rdf-raptor", "~> 3.2"
   spec.add_runtime_dependency "rdf-vocab"
   spec.add_runtime_dependency "require_all", "~> 3.0"
   spec.add_runtime_dependency "rest-client", "~> 2.1"
-  spec.add_runtime_dependency "sinatra", "~> 2.2"
-  spec.add_runtime_dependency "sinatra-cross_origin"
-  spec.add_runtime_dependency "swagger-blocks", "~> 3.0"
   spec.add_runtime_dependency "triple_easy", "~> 0.1.0"
   spec.add_runtime_dependency "xml-simple", "~> 1.1"
 
