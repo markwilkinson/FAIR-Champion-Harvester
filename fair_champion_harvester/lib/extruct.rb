@@ -1,6 +1,23 @@
 module FAIRChampionHarvester
   class Extruct
-    def self.do_extruct(meta, uri)
+    BINARY_CONTENT_TYPE = %r{
+      application/pdf|application/octet-stream|
+      image/|audio/|video/|
+      application/zip|application/gzip|application/x-tar|
+      application/msword|application/vnd\.
+    }ix
+    BINARY_MAGIC_BYTES = /\A(%PDF|PK\x03\x04|GIF8|\x89PNG|\xFF\xD8\xFF|\xD0\xCF|\x1F\x8B)/n
+
+    def self.do_extruct(meta, uri, content_type: nil, body_prefix: nil)
+      if content_type&.match?(BINARY_CONTENT_TYPE)
+        meta.comments << "INFO: Skipping extruct for #{uri} — " \
+                         "binary content-type '#{content_type}' is not HTML-parseable.\n"
+        return
+      end
+      if body_prefix&.match?(BINARY_MAGIC_BYTES)
+        meta.comments << "INFO: Skipping extruct for #{uri} — binary file signature detected in response body.\n"
+        return
+      end
       meta.comments << "INFO:  Using 'extruct' to try to extract metadata from return value (message body) of #{uri}.\n"
       warn "begin open3"
       # binding.pry

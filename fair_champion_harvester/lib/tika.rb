@@ -1,18 +1,37 @@
 module FAIRChampionHarvester
   class Tika
+    @seen_digests = Set.new
+
     def self.do_tika(meta, body)
+      digest = Digest::SHA256.hexdigest(body.to_s)
+      if @seen_digests.include?(digest)
+        meta.comments << "INFO: Tika skipping body — identical content already parsed.\n"
+        return
+      end
+      @seen_digests << digest
+
       file = Tempfile.new("foo")
       file.binmode
       file.write(body)
       file.rewind
       meta.comments << "INFO: The message body is being examined by Apache Tika\n"
 
-      result = `curl --silent -T #{file.path} #{FAIRChampionHarvester::Utils::TikaCommand} --header "Accept: application/rdf+xml" 2>&1`
+      stdout, stderr, status = Open3.capture3(
+        "curl", "--silent", "--show-error", "--connect-timeout", "10",
+        "-T", file.path,
+        "--header", "Accept: application/rdf+xml",
+        FAIRChampionHarvester::Utils::TikaCommand
+      )
       file.close
       file.unlink # deletes the temp file
-      meta.comments << "INFO: The response from Apache Tika is being parsed\n"
 
-      FAIRChampionHarvester::Tika.parse_tika_output(meta, result)
+      unless status.success?
+        meta.comments << "WARN: Tika curl call failed (exit #{status.exitstatus}): #{stderr.strip}\n"
+        return
+      end
+
+      meta.comments << "INFO: The response from Apache Tika is being parsed\n"
+      FAIRChampionHarvester::Tika.parse_tika_output(meta, stdout)
     end
 
     def self.parse_tika_output(meta, output)

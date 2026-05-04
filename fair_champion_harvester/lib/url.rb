@@ -53,7 +53,7 @@ module FAIRChampionHarvester
                 guid
               end
         meta.comments << "INFO: Now attempting to use the extruct parser. \n"
-        FAIRChampionHarvester::Extruct.do_extruct(meta, url)
+        FAIRChampionHarvester::Extruct.do_extruct(meta, url, content_type: head[:content_type], body_prefix: body[0, 8])
         meta.comments << "INFO: Now attempting to use the Kellogg's Distiller parser. \n"
         meta.comments << "INFO: Note that, if the Distiller fails, you can view the output of its parse by visiting http://rdf.greggkellogg.net/distiller?command=serialize&url=#{CGI.escape(url.to_s)}. \n"
         FAIRChampionHarvester::Distiller.do_distiller(meta, body)
@@ -83,7 +83,7 @@ module FAIRChampionHarvester
         FAIRChampionHarvester::Distiller.do_distiller(meta, body)
         warn "\n\nPARSING WITH EXTRUCT\n\n"
         meta.comments << "INFO: Metadata may be embedded, now searching using the 'extruct' tool.\n"
-        FAIRChampionHarvester::Extruct.do_extruct(meta, url)
+        FAIRChampionHarvester::Extruct.do_extruct(meta, url, content_type: head[:content_type], body_prefix: body[0, 8])
       end
 
       meta
