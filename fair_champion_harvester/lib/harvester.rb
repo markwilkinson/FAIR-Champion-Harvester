@@ -197,7 +197,7 @@ module FAIRChampionHarvester
       links = headers[:link]
       return [] unless links
 
-      parts = links.split(",")
+      parts = Array(links).flat_map { |l| l.split(",") }
 
       urls = []
       # Parse each part into a named link
@@ -205,17 +205,18 @@ module FAIRChampionHarvester
         section = part.split(";")
         next unless section[0]
 
-        url = section[0][/<(.*)>/, 1]
+        url = section[0][/<([^>]*)>/, 1]
+        next unless url
         next unless section[1]
 
-        type = ""
+        type = nil
         section[1..].each do |s|
-          type = s[/rel="?(\w+)"?/, 1]
+          type = s[/rel="?([\w-]+)"?/, 1]
           break if type
         end
         next unless type
         # "meta" headers are for old versions of Virtuoso LDP - not in link relations standared
-        next unless %w[meta alternate].include?(type.downcase)
+        next unless %w[meta alternate describedby].include?(type.downcase)
 
         urls << url
       end
