@@ -229,7 +229,8 @@ module FAIRChampionHarvester
 
       # Focus on <link> tags inside <head> (MetaInspector's head_links equivalent)
       # We use css selector for simplicity and readability
-      link_nodes = doc.css('head link[rel="alternate"][type]') # only those with rel=alternate AND type attr
+      link_nodes = doc.css('head link[rel="alternate"][type]') +
+                   doc.css('head link[rel="describedby"][type]')
 
       # Your format lists – assuming these are constants/hashes like:
       # FAIRChampionHarvester::Utils::RDF_FORMATS  => { jsonld: "application/ld+json", ... }
@@ -267,46 +268,7 @@ module FAIRChampionHarvester
 
       urls
     end
-    # def self.parse_link_body_headers(url, body)
-    #   m = MetaInspector.new(url, document: body)
-    #   # accept any alternate that is in structured data format
-    #   ls = m.head_links.select do |l|
-    #     l[:rel] == 'alternate' and
-    #       [FAIRChampionHarvester::Utils::RDF_FORMATS.values,
-    #        FAIRChampionHarvester::Utils::XML_FORMATS.values,
-    #        FAIRChampionHarvester::Utils::JSON_FORMATS.values].flatten
-    #         .include?(l[:type])
-    #   end
-    #   # ls is an array of elements that look like this: [{:rel=>"alternate", :type=>"application/ld+json", :href=>"http://scidata.vitk.lv/dataset/303.jsonld"}]
-    #   urls = ls.map { |l| l[:href] }
-    #   urls.compact
-    #   warn "\n\nGOT BODY LINKS #{urls}\n\n"
-    #   urls
-    # end
 
-    # Recursively collects **all non-Hash values** (leaf values) from a nested Hash structure.
-    #
-    # Traverses the hash in depth-first order and gathers every value that is not itself
-    # a Hash into a flat array. Keys are completely ignored.
-    #
-    # @param myHash [Hash] the nested hash to traverse
-    # @param value  [Object] currently unused (likely legacy or placeholder parameter)
-    # @param vals   [Array] accumulator for collected values (mutable, passed by reference)
-    # @return [Array] flat list of all leaf (non-Hash) values in depth-first traversal order
-    #
-    # @example
-    #   h = {
-    #     name: "Alice",
-    #     info: {
-    #       age: 34,
-    #       address: { city: "Madrid", coords: { lat: 40.4168, lon: -3.7038 } },
-    #       hobbies: ["reading", "hiking"]
-    #     }
-    #   }
-    #
-    #   deep_dive_values(h)
-    #   # => ["Alice", 34, "Madrid", 40.4168, -3.7038, "reading", "hiking"]
-    #
     def self.deep_dive_values(myHash, value = nil, vals = [])
       myHash.each_pair do |_key, value|
         if value.is_a?(Hash)
@@ -320,38 +282,6 @@ module FAIRChampionHarvester
       vals
     end
 
-    # Recursively collects **every key-value pair** from a nested Hash structure as [key, value] arrays.
-    #
-    # Traverses the entire nested hash in depth-first order and records every key-value pair
-    # encountered — including pairs where the value is itself a Hash.
-    #
-    # Note: The `property` parameter is currently **not used** (dead code). Both branches
-    # of the conditional do the same thing, so every pair is collected regardless of `property`.
-    #
-    # @param myHash   [Hash] the nested hash to traverse
-    # @param property [Symbol, String, nil] intended filter key (currently ineffective)
-    # @param props    [Array] accumulator for [key, value] pairs (mutable)
-    # @return [Array<Array>] flat list of [key, value] tuples in depth-first order
-    #
-    # @example
-    #   h = {
-    #     user: "bob42",
-    #     config: {
-    #       theme: "dark",
-    #       alerts: { email: true, push: false }
-    #     }
-    #   }
-    #
-    #   deep_dive_properties(h)
-    #   # => [[:user, "bob42"],
-    #   #     [:config, {theme: "dark", alerts: {email: true, push: false}}],
-    #   #     [:theme, "dark"],
-    #   #     [:alerts, {email: true, push: false}],
-    #   #     [:email, true],
-    #   #     [:push, false]]
-    #
-    #   deep_dive_properties(h, :email)   # ← currently returns the same as above (bug)
-    #
     def self.deep_dive_properties(myHash, property = nil, props = [])
       return props unless myHash.is_a?(Hash)
 
@@ -436,7 +366,7 @@ module FAIRChampionHarvester
           [response.headers, response.body.to_s] # return headers, body, and final URL
         else
           # Handle HTTP error status codes (4xx, 5xx, etc.)
-          warn "HTTP Error #{response.status} for #{url}"
+          warn "HTTP Error #{response.status} for #{guid}"
           warn "Final URL: #{response.uri}" if response.uri
           FAIRChampionHarvester::Cache.writeErrorToCache(guid, headers)
           meta.comments << "WARN: HTTP error #{response.status} encountered when trying to resolve #{guid}\n" if meta
@@ -451,7 +381,7 @@ module FAIRChampionHarvester
       rescue StandardError => e
         # Catch any other unexpected errors
         warn "Unexpected error while fetching #{guid}: #{e.class} - #{e.message}"
-        warn e.backtrace.first(5).join("\n") if ENV["DEBUG"]
+        warn e.backtrace.first(10).join("\n")
         FAIRChampionHarvester::Cache.writeErrorToCache(guid, headers)
         meta.comments << "WARN: HTTP error #{e.message} encountered when trying to resolve #{guid}\n" if meta
         false
@@ -487,7 +417,7 @@ module FAIRChampionHarvester
 
       response = HTTP
                  .headers(headers).follow
-                 .get(guid.to_s) # or full URL
+                 .get(url.to_s) # or full URL
 
       if response.status.success?
         [response.headers, response.body.to_s] # return headers, body, and final URL
@@ -499,11 +429,11 @@ module FAIRChampionHarvester
       end
     rescue HTTP::Error => e
       # This catches network errors, timeouts, connection failures, DNS errors, etc.
-      warn "HTTP Request Failed for #{guid}: #{e.message}"
+      warn "HTTP Request Failed for #{url}: #{e.message}"
       false
     rescue StandardError => e
       # Catch any other unexpected errors
-      warn "Unexpected error while fetching #{guid}: #{e.class} - #{e.message}"
+      warn "Unexpected error while fetching #{url}: #{e.class} - #{e.message}"
       false
     end
 
@@ -525,7 +455,7 @@ module FAIRChampionHarvester
       warn e.response
       false
     # now we are returning 'False', and we will check that with an \"if\" statement in our main code
-    rescue Exception => e
+    rescue StandardError => e
       warn e
       false
       # now we are returning 'False', and we will check that with an \"if\" statement in our main code
@@ -550,7 +480,7 @@ module FAIRChampionHarvester
       warn e.response
       false
     # now we are returning 'False', and we will check that with an \"if\" statement in our main code
-    rescue Exception => e
+    rescue StandardError => e
       warn e
       false
       # now we are returning 'False', and we will check that with an \"if\" statement in our main code
