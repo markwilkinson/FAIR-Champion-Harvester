@@ -1,5 +1,10 @@
 ## [Unreleased]
 
+## [0.1.12] - 2026-05-27
+
+### Fixed
+- 0.1.11 regression: `FAIRChampionHarvester::Uri` was missing from the gem because `uri_resolver.rb` was not tracked by git and the gemspec uses `git ls-files` to determine packaged files; merged the class back into `lib/uri.rb` so a single tracked file handles both stdlib forwarding and the class definition
+
 ## [0.1.11] - 2026-05-26
 
 ### Fixed
