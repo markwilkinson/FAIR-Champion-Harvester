@@ -148,38 +148,80 @@ module FAIRChampionHarvester
         return meta
       end
       meta.comments << "INFO: The response message body component appears to contain #{formattype}.\n"
-      reader = ""
-      begin
-        reader = formattype.reader.new(body)
-      rescue StandardError
-        meta.comments << "WARN: Though linked data was found, it failed to parse.  This likely indicates some syntax error in the data.  As a result, no metadata will be extracted from this message.\n"
-        return meta
-      end
+      if formattype.to_s.include?('JSON::LD')
+        # JSON-LD: expand with remote context resolution to correctly apply @type: @id coercions
+        # (e.g. schema.org "license" coerced to IRI resource instead of string literal)
+        # json/ld/preloaded provides schema.org and other common contexts without network calls
+        begin
+          json_body = JSON.parse(body)
+          context_hint = json_body.is_a?(Array) ? json_body.first&.[]('@context') : json_body['@context']
+          warn "JSON-LD Expansion: Context is #{context_hint}"
 
-      begin
-        # $stderr.puts "Reader Class #{reader.class}\n\n #{reader.inspect}"
-        if reader.size == 0
+          expanded = JSON::LD::API.expand(json_body, processingMode: 'json-ld-1.1')
+          warn "JSON-LD Expansion: Output has #{expanded.length} objects"
+
+          graph = RDF::Graph.new
+          JSON::LD::API.toRdf(expanded) { |statement| graph << statement }
+
+          if graph.size == 0
+            meta.comments << "WARN: Though linked data was found, it failed to parse.  This likely indicates some syntax error in the data.  As a result, no metadata will be extracted from this message.\n"
+            return meta
+          end
+
+          meta.comments << "INFO: JSON-LD context resolved and expanded successfully.\n"
+          FAIRChampionHarvester::Cache.writeRDFCache(graph, body)
+          meta.merge_rdf(graph.to_a)
+
+        rescue JSON::LD::JsonLdError => e
+          meta.comments << "WARN: JSON-LD context resolution failed: #{e.message}. Attempting parse without expansion.\n"
+          warn "JSON-LD JsonLdError: #{e.message}"
+          begin
+            reader = formattype.reader.new(body)
+            meta.merge_rdf(reader.to_a)
+            meta.comments << "WARN: Parsed JSON-LD without context expansion. Results may be incomplete.\n"
+          rescue => fallback_error
+            meta.comments << "CRITICAL: JSON-LD parsing failed even without context expansion: #{fallback_error.message}\n"
+            return meta
+          end
+        rescue StandardError => e
+          meta.comments << "WARN: Though linked data was found, it failed to parse.  This likely indicates some syntax error in the data.  As a result, no metadata will be extracted from this message.\n"
+          warn "JSON-LD StandardError: #{e.message}"
+          return meta
+        end
+      else
+        reader = ""
+        begin
+          reader = formattype.reader.new(body)
+        rescue StandardError
           meta.comments << "WARN: Though linked data was found, it failed to parse.  This likely indicates some syntax error in the data.  As a result, no metadata will be extracted from this message.\n"
           return meta
         end
-        #       reader.rewind!
-        # for some reason, the rewind method isn't working here...??
-        reader = formattype.reader.new(body) # have to re-read it here, but now its safe because we have already caught errors
-        warn "WRITING TO CACHE"
-        FAIRChampionHarvester::Cache.writeRDFCache(reader, body) # write to the special RDF graph cache
-        warn "WRITING DONE"
-        reader = formattype.reader.new(body)
-        warn "RE-READING DONE"
-        meta.merge_rdf(reader.to_a)
-        warn "MERGE DONE"
-      rescue RDF::ReaderError => e
-        meta.comments << "CRITICAL: The Linked Data was malformed and caused the parser to crash with error message: #{e.message} ||  (sample of what was parsed:  #{body[0..300].delete("\n")})\n"
-        warn "CRITICAL: The Linked Data was malformed and caused the parser to crash with error message: #{e.message} ||  (sample of what was parsed:  #{body[0..300].delete("\n")})\n"
-        nil
-      rescue Exception => e
-        meta.comments << "CRITICAL: An unknown error occurred while parsing the (apparent) Linked Data (sample of what was parsed:  #{body[0..300].delete("\n")}).  Moving on...\n"
-        warn "\n\nCRITICAL: #{e.inspect} An unknown error occurred while parsing the (apparent) Linked Data (full body:  #{body}).  Moving on...\n\n"
-        nil
+
+        begin
+          # $stderr.puts "Reader Class #{reader.class}\n\n #{reader.inspect}"
+          if reader.size == 0
+            meta.comments << "WARN: Though linked data was found, it failed to parse.  This likely indicates some syntax error in the data.  As a result, no metadata will be extracted from this message.\n"
+            return meta
+          end
+          #       reader.rewind!
+          # for some reason, the rewind method isn't working here...??
+          reader = formattype.reader.new(body) # have to re-read it here, but now its safe because we have already caught errors
+          warn "WRITING TO CACHE"
+          FAIRChampionHarvester::Cache.writeRDFCache(reader, body) # write to the special RDF graph cache
+          warn "WRITING DONE"
+          reader = formattype.reader.new(body)
+          warn "RE-READING DONE"
+          meta.merge_rdf(reader.to_a)
+          warn "MERGE DONE"
+        rescue RDF::ReaderError => e
+          meta.comments << "CRITICAL: The Linked Data was malformed and caused the parser to crash with error message: #{e.message} ||  (sample of what was parsed:  #{body[0..300].delete("\n")})\n"
+          warn "CRITICAL: The Linked Data was malformed and caused the parser to crash with error message: #{e.message} ||  (sample of what was parsed:  #{body[0..300].delete("\n")})\n"
+          nil
+        rescue Exception => e
+          meta.comments << "CRITICAL: An unknown error occurred while parsing the (apparent) Linked Data (sample of what was parsed:  #{body[0..300].delete("\n")}).  Moving on...\n"
+          warn "\n\nCRITICAL: #{e.inspect} An unknown error occurred while parsing the (apparent) Linked Data (full body:  #{body}).  Moving on...\n\n"
+          nil
+        end
       end
     end
 

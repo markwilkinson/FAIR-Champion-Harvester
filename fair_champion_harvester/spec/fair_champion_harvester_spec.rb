@@ -116,6 +116,70 @@ RSpec.describe FAIRChampionHarvester do
   end
 
   # ---------------------------------------------------------------------------
+  # Unit tests — JSON-LD context expansion (no network required)
+  # ---------------------------------------------------------------------------
+  describe FAIRChampionHarvester::Core do
+    describe ".parse_rdf" do
+      let(:meta) { FAIRChampionHarvester::MetadataObject.new }
+
+      before do
+        # Clear RDF graph cache so previous runs don't produce false cache hits
+        Dir.glob("/tmp/*_graph").each { |f| File.delete(f) }
+        Dir.glob("/tmp/*_graphbody").each { |f| File.delete(f) }
+      end
+
+      context "with JSON-LD using a remote schema.org @context" do
+        # schema.org license property has "@type": "@id", so the URL must be coerced to an IRI
+        # resource rather than left as a string literal. This requires context expansion.
+        let(:jsonld_body) do
+          JSON.generate(
+            "@context" => "http://schema.org",
+            "@id" => "https://example.com/dataset/jsonld-license-test",
+            "license" => "https://creativecommons.org/licenses/by/4.0/legalcode"
+          )
+        end
+
+        before { described_class.parse_rdf(meta, jsonld_body, "application/ld+json") }
+
+        it "parses license as an IRI resource (RDF::URI), not a string literal" do
+          triples = meta.graph.query([nil, RDF::URI("http://schema.org/license"), nil]).to_a
+          expect(triples).not_to be_empty
+          obj = triples.first.object
+          expect(obj).to be_a(RDF::URI), "Expected RDF::URI but got #{obj.class}: #{obj.inspect}"
+          expect(obj.to_s).to eq("https://creativecommons.org/licenses/by/4.0/legalcode")
+        end
+
+        it "reports successful context expansion in comments" do
+          expect(meta.comments).to include("INFO: JSON-LD context resolved and expanded successfully.\n")
+        end
+      end
+
+      context "with JSON-LD as a top-level array (wrapped document)" do
+        # extruct and some APIs return JSON-LD as a JSON array rather than a bare object;
+        # JSON.parse returns an Array and indexing it with a String key raises TypeError
+        # unless the array case is handled before the @context debug lookup.
+        let(:jsonld_body) do
+          JSON.generate([{
+            "@context" => "http://schema.org",
+            "@id" => "https://example.com/dataset/array-wrapped-test",
+            "name" => "Array-wrapped Test Dataset"
+          }])
+        end
+
+        it "handles array-wrapped JSON-LD without raising" do
+          expect { described_class.parse_rdf(meta, jsonld_body, "application/ld+json") }.not_to raise_error
+        end
+
+        it "still extracts triples from array-wrapped JSON-LD" do
+          described_class.parse_rdf(meta, jsonld_body, "application/ld+json")
+          triples = meta.graph.query([nil, RDF::URI("http://schema.org/name"), nil]).to_a
+          expect(triples).not_to be_empty
+        end
+      end
+    end
+  end
+
+  # ---------------------------------------------------------------------------
   # Integration tests — live network calls
   # ---------------------------------------------------------------------------
   describe "live resolution", :live do
