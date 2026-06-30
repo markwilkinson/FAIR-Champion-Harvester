@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.1.14] - 2026-06-30
+
+### Fixed
+
+- Critical cache collision bug in `Cache.checkRDFCache`: the lookup was comparing only `File.size == body.bytesize` (byte count) against every `*_graphbody` file in `/tmp`, while `writeRDFCache` had always written files keyed by `MD5(body)`. As `/tmp` accumulated files over days of running, any two metadata bodies with identical byte counts would collide — the wrong RDF graph would be returned for a request. Symptom: a completely unrelated dataset's metadata (e.g. "Tata Motors NSE OHLCV Dataset") returned for a different resource (e.g. Glasgow University ORDA record). Problem disappeared on restart (clears `/tmp`) but returned after ~1 week. Fixed by rewriting `checkRDFCache` to look up directly by `MD5(body)` — O(1), no glob scan, and consistent with the write path. Also eliminates the parallel-access race window where a thread could match a partially-written file from another thread.
+
 ## [0.1.13] - 2026-06-30
 
 ### Fixed

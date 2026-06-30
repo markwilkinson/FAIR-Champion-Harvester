@@ -5,26 +5,17 @@ module FAIRChampionHarvester
     ###################  #####################################
 
     def self.checkRDFCache(body)
-      fs = File.join("/tmp/", "*_graphbody")
-      bodies = Dir.glob(fs)
       g = RDF::Graph.new
-      bodies.each do |bodyfile|
-        next unless File.size(bodyfile) == body.bytesize # compare body size
-        next unless bodyfile.match(/(.*)_graphbody$/) # continue if there's no match
+      key = Digest::MD5.hexdigest body
+      graph_file = "/tmp/#{key}_graph"
+      body_file  = "/tmp/#{key}_graphbody"
 
-        filename = ::Regexp.last_match(1)
-        warn "Regexp match for #{filename} FOUND"
-        next unless File.exist?("#{filename}_graph") # @ get the associated graph file
+      return g unless File.exist?(graph_file) && File.exist?(body_file)
 
-        warn "RDF Cache File #{filename} FOUND"
-        graph = Marshal.load(File.read("#{filename}_graph")) # unmarshal it
-        graph.each do |statement|
-          g << statement # need to do this because the unmarshalled object isn't entirely functional as an RDF::Graph object
-        end
-        warn "returning a graph of #{g.size}"
-        break
-      end
-      # return an empty graph otherwise
+      warn "RDF Cache File #{key} FOUND"
+      graph = Marshal.load(File.read(graph_file))
+      graph.each { |statement| g << statement }
+      warn "returning a graph of #{g.size}"
       g
     end
 
