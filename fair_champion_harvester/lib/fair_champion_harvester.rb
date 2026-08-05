@@ -21,6 +21,7 @@ require "parseconfig"
 require "cgi"
 require "digest"
 require "open3"
+require "shellwords"
 require "require_all"
 # require 'pry'
 require_relative "fair_champion_harvester/version"

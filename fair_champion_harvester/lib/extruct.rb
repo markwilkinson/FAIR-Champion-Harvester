@@ -8,6 +8,15 @@ module FAIRChampionHarvester
     }ix
     BINARY_MAGIC_BYTES = /\A(%PDF|PK\x03\x04|GIF8|\x89PNG|\xFF\xD8\xFF|\xD0\xCF|\x1F\x8B)/n
 
+    # Hard ceiling, in seconds, on how long the external `extruct` process may
+    # run. The content-type and magic-byte checks above catch most binary
+    # responses, but not all of them (unreliable/missing headers, formats
+    # outside BINARY_MAGIC_BYTES, or just very large/slow-to-parse HTML) —
+    # without this, a single such request blocks the calling thread (and
+    # leaks an orphaned Python process) indefinitely. Configurable via
+    # EXTRUCT_TIMEOUT_SECONDS.
+    TIMEOUT_SECONDS = ENV.fetch("EXTRUCT_TIMEOUT_SECONDS", 30).to_i
+
     def self.do_extruct(meta, uri, content_type: nil, body_prefix: nil)
       if content_type&.match?(BINARY_CONTENT_TYPE)
         meta.comments << "INFO: Skipping extruct for #{uri} — " \
@@ -21,10 +30,25 @@ module FAIRChampionHarvester
       meta.comments << "INFO:  Using 'extruct' to try to extract metadata from return value (message body) of #{uri}.\n"
       warn "begin open3"
       # binding.pry
-      stdout, stderr, status = Open3.capture3(FAIRChampionHarvester::Utils::ExtructCommand + " " + uri)
+      # Pass argv as separate elements (not one interpolated string) so this
+      # never goes through a shell — `uri` can be attacker/publisher-supplied
+      # and must not be shell-interpolated — and prepend the `timeout`
+      # coreutil so a hung/slow extruct process is forcibly killed (-k 5:
+      # escalate to SIGKILL 5s after the initial SIGTERM if it's ignored)
+      # instead of blocking this thread and leaking a child process forever.
+      command_parts = Shellwords.split(FAIRChampionHarvester::Utils::ExtructCommand)
+      stdout, stderr, status = Open3.capture3(
+        "timeout", "-k", "5", TIMEOUT_SECONDS.to_s, *command_parts, uri
+      )
       warn ""
       # sleep 5
       warn "open3 status: #{status} #{stdout}"
+
+      if [124, 137].include?(status.exitstatus)
+        meta.comments << "WARN: extruct timed out after #{TIMEOUT_SECONDS}s parsing #{uri} — skipping.\n"
+        return
+      end
+
       result = stderr # absurd that the output comes over stderr!  LOL!
 
       # result = %x{#{FAIRChampionHarvester::Utils::ExtructCommand} #{uri} 2>&1}

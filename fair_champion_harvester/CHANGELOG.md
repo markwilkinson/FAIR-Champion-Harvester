@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.1.15] - 2026-08-05
+
+### Fixed
+
+- `Extruct.do_extruct` had no timeout on the external `extruct` subprocess (`Open3.capture3`). The content-type and magic-byte checks catch most binary responses, but not all (unreliable/missing headers, formats outside `BINARY_MAGIC_BYTES`, or just very large/slow-to-parse HTML) — a single such request blocked the calling thread indefinitely and leaked an orphaned Python process, since Puma's `worker_timeout` only restarts a worker whose *every* thread has stopped responding, not one with a single permanently-stuck thread among several. Diagnosed on `tests.ostrails.eu` after multiple hours-long outages: load average 40-50, several `python3 extruct <uri>` processes pegged at high CPU for many minutes, and 68 zombie processes. Fixed by prepending the `timeout` coreutil (`-k 5`: escalate to `SIGKILL` 5s after the initial `SIGTERM` if ignored) to the invocation, configurable via `EXTRUCT_TIMEOUT_SECONDS` (default 30s).
+- Same change also closes a latent command-injection hole: the subprocess was previously invoked as a single shell-interpolated string (`"#{ExtructCommand} #{uri}"`), so a crafted `uri` could inject shell metacharacters. It's now passed as separate `argv` elements (`Open3.capture3("timeout", ..., *command_parts, uri)`), which never goes through a shell.
+
 ## [0.1.14] - 2026-06-30
 
 ### Fixed
