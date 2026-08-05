@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.1.16] - 2026-08-05
+
+### Fixed
+
+- `HARVESTER_VERSION` (`lib/harvester.rb`, embedded in every test's `testversion` output so users can track which harvester build produced a result) was left at `Hvst-0.1.14` when 0.1.15 shipped. Updated to `Hvst-0.1.16` and kept in lockstep with `FairChampionHarvester::VERSION` going forward.
+
 ## [0.1.15] - 2026-08-05
 
 ### Fixed
