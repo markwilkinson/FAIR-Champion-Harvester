@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.1.17] - 2026-08-11
+
+### Fixed
+
+- `Cache.checkCache` and `Cache.checkRDFCache` (`lib/cache.rb`) never expired anything — once a `/tmp/<md5>_*` entry was written, `harvester.rb#fetch` returned it forever, since `/tmp` inside the `communitytests` container is not a persistent volume and the only ways to clear a stale entry were a full container restart or manually deleting files over SSH. Added a `cached_at` timestamp file per entry (and per RDF graph cache entry) plus a TTL check on read, configurable via `CACHE_TTL` (default 300s / 5 minutes — short by design, since harvested DCAT/TTL records under test change frequently and testers need to see edits reflected quickly, unlike FDP-Index-Proxy's 24h `FDP_CACHE_TTL`). Also added `Cache.purge(uri, headers)` to force-evict a specific entry without waiting for TTL expiry.
+
 ## [0.1.16] - 2026-08-05
 
 ### Fixed

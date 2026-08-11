@@ -1,4 +1,4 @@
-HARVESTER_VERSION = "Hvst-0.1.16".freeze
+HARVESTER_VERSION = "Hvst-0.1.17".freeze
 # better output,
 # different dealing with DataCite (they have a unique type header)
 # handle large extruct output,
