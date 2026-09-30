@@ -12,6 +12,11 @@ module FAIRChampionHarvester
       meta.comments << "INFO: following redirection using this header led to the following URL: #{meta.finalURI.last}.  Using the output from this URL for the next few tests..."
       meta.full_response << body
 
+      # remember every typed link (any rel) for later service discovery, e.g. OAI-PMH / FAIRiCat
+      hint_base = meta.finalURI.last =~ %r{^\w+://} ? meta.finalURI.last : guid
+      meta.link_hints |= FAIRChampionHarvester::LinkHints.from_headers(head, hint_base)
+      meta.link_hints |= FAIRChampionHarvester::LinkHints.from_html(body, hint_base, content_type: head[:content_type])
+
       links = []
       links << Core.parse_link_http_headers(head) unless nolinkheaders
       links << Core.parse_link_body_headers(guid, body) unless nolinkheaders

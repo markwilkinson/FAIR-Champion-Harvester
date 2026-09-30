@@ -2,6 +2,24 @@
 
 ## [Unreleased]
 
+## [0.1.19] - 2026-09-30
+
+### Fixed
+
+- 0.1.18 was built without `lib/link_hints.rb` and `lib/python/sitecustomize.py`: the gemspec packages `git ls-files` and those new files were still untracked, so every resolution raised `NameError: uninitialized constant FAIRChampionHarvester::LinkHints` in `URL.resolve_url`. Files are now tracked, and `spec/packaging_spec.rb` fails if anything under `lib/` is missing from the gem's file list. **Do not use 0.1.18.**
+
+## [0.1.18] - 2026-09-30
+
+### Added
+
+- OAI-PMH harvesting (`lib/oai-pmh.rb`, replacing a commented-out prototype), run from `Core.resolveit` after whichever DOI/Handle/URI resolver matched. The endpoint is found by, in order: (1) **FAIRiCat** (https://signposting.org/FAIRiCat/) — a `Link: <...>; rel="api-catalog"` header or `/.well-known/api-catalog`, read as an `application/linkset+json` document in which the OAI-PMH endpoint is the `anchor` of an entry whose `service-doc`/`service-meta`/`service-desc` links point at the OAI protocol spec or a `?verb=Identify` URL; (2) **heuristics** over links already seen on the resource (HTTP `Link` headers and HTML `<link>` elements) — any href with an OAI-PMH `verb=` query, or a conventional path such as `/oai`, `/oai2d`, `/oai-pmh`. Every candidate is verified with an `Identify` request before it is believed. The record is then fetched with `GetRecord` (identifier taken from a `verb=GetRecord` link if present, otherwise derived from the server's `oai-identifier` scheme plus the landing-URL tail / DOI), as `oai_dc` (mapped to RDF with the GUID's final URL as subject) plus one richer format if offered (`oai_datacite`, `datacite4`, `datacite`, `oai_rdf`, `rdf`). Absence of an OAI-PMH server is normal and logs INFO, never WARN.
+- `LinkHints` (`lib/link_hints.rb`) and `MetadataObject#link_hints`: every typed link (any `rel`) from `Link` headers and HTML `<link>` elements is now recorded by `URL.resolve_url`, for service discovery.
+- All outbound HTTP now identifies itself with `User-Agent: fair-champion-tests-harvester` (override with `HARVESTER_USER_AGENT`), so repository operators can recognise and whitelist the harvester instead of seeing `http.rb/x.y.z`. It is deliberately unversioned, and is applied outside the `headers` argument of `Core.fetch` so it does not change cache keys. The `extruct` CLI re-fetches pages with python-requests and has no UA option, so a `sitecustomize.py` shim (`lib/python/`, enabled via `PYTHONPATH`/`EXTRUCT_USER_AGENT` for that subprocess only) replaces its default UA.
+
+### Fixed
+
+- `MetadataObject#merge_rdf` did `graph << triples`, but RDF.rb treats an Array as a single `[s, p, o]` triple, so a list of statements was silently collapsed or rejected with `ArgumentError` (this affected the RDF-cache-hit path in `parse_rdf`). It now adds each statement individually.
+
 ## [0.1.17] - 2026-08-11
 
 ### Fixed

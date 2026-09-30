@@ -9,6 +9,13 @@ module FAIRChampionHarvester
 
     FAIRChampionHarvester::Utils::AcceptDefaultHeader = { "Accept" => "*/*" }
 
+    # Identifies this harvester to the repositories it contacts, so their
+    # operators can recognise (and whitelist) it instead of seeing a generic
+    # library default such as "http.rb/6.0.4". Deliberately unversioned so a
+    # whitelist entry survives upgrades. Override with HARVESTER_USER_AGENT.
+    FAIRChampionHarvester::Utils::UserAgent = ENV.fetch("HARVESTER_USER_AGENT", "fair-champion-tests-harvester").freeze
+    FAIRChampionHarvester::Utils::UserAgentHeader = { "User-Agent" => FAIRChampionHarvester::Utils::UserAgent }.freeze
+
     FAIRChampionHarvester::Utils::TEXT_FORMATS = {
       "text" => ["text/plain"]
     }

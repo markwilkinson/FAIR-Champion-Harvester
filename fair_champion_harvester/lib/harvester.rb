@@ -1,4 +1,4 @@
-HARVESTER_VERSION = "Hvst-0.1.17".freeze
+HARVESTER_VERSION = "Hvst-0.1.19".freeze
 # better output,
 # different dealing with DataCite (they have a unique type header)
 # handle large extruct output,
@@ -42,6 +42,8 @@ module FAIRChampionHarvester
         meta.guidtype = "unknown"
         meta.comments << "CRITICAL: The guid '#{guid}' did not correspond to any known GUID format. Tested #{FAIRChampionHarvester::Utils::GUID_TYPES.keys}. Halting.\n"
       end
+      # OAI-PMH is found by discovery, not by GUID syntax, so it runs after whichever resolver matched
+      FAIRChampionHarvester::OAIPMH.resolve_oaipmh(guid, meta) unless meta.guidtype == "unknown"
       meta.comments << "INFO: END OF HARVESTING\n"
       # FAIRChampionHarvester::Utils::cacheMetaObject(meta, guid)
       meta
@@ -373,6 +375,13 @@ module FAIRChampionHarvester
       [nil, nil]
     end
 
+    # Every outbound request made with the +http+ gem goes through here so that
+    # it carries our User-Agent. The UA is deliberately NOT part of the +headers+
+    # argument of fetch(), because that hash is also the cache key.
+    def self.http_client(headers)
+      HTTP.headers(FAIRChampionHarvester::Utils::UserAgentHeader).headers(headers).follow
+    end
+
     def self.fetch(guid:, headers: FAIRChampionHarvester::Utils::AcceptHeader, meta: nil) # we will try to retrieve turtle whenever possible
       head, body, finalURI = FAIRChampionHarvester::Cache.checkCache(guid, headers)
       return false if head and head == "ERROR"
@@ -395,9 +404,7 @@ module FAIRChampionHarvester
         #   # password: pass,
         #   headers: headers
         # )
-        response = HTTP
-                   .headers(headers).follow
-                   .get(guid.to_s) # or full URL
+        response = http_client(headers).get(guid.to_s) # or full URL
 
         if response.status.success?
           final_url = response.uri.to_s
@@ -457,9 +464,7 @@ module FAIRChampionHarvester
       #    return false
       # end
 
-      response = HTTP
-                 .headers(headers).follow
-                 .get(url.to_s) # or full URL
+      response = http_client(headers).get(url.to_s) # or full URL
 
       if response.status.success?
         [response.headers, response.body.to_s] # return headers, body, and final URL
@@ -486,7 +491,7 @@ module FAIRChampionHarvester
                                                url: url.to_s,
                                                # user: user,
                                                # password: pass,
-                                               headers: headers
+                                               headers: FAIRChampionHarvester::Utils::UserAgentHeader.merge(headers)
                                              })
       response.headers
     rescue RestClient::ExceptionWithResponse => e
@@ -511,7 +516,7 @@ module FAIRChampionHarvester
                                                url: url.to_s,
                                                # user: user,
                                                # password: pass,
-                                               headers: headers
+                                               headers: FAIRChampionHarvester::Utils::UserAgentHeader.merge(headers)
                                              })
       response.request.url
     rescue RestClient::ExceptionWithResponse => e

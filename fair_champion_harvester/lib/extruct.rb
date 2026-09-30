@@ -17,6 +17,19 @@ module FAIRChampionHarvester
     # EXTRUCT_TIMEOUT_SECONDS.
     TIMEOUT_SECONDS = ENV.fetch("EXTRUCT_TIMEOUT_SECONDS", 30).to_i
 
+    # The extruct CLI re-fetches the URL itself with python-requests and has no
+    # option for setting the User-Agent. This directory holds a sitecustomize.py
+    # that, when EXTRUCT_USER_AGENT is set, replaces requests' default UA.
+    PYTHON_SHIM_DIR = File.expand_path("python", __dir__)
+
+    def self.python_env
+      {
+        "EXTRUCT_USER_AGENT" => FAIRChampionHarvester::Utils::UserAgent,
+        "PYTHONDONTWRITEBYTECODE" => "1", # don't litter the (possibly read-only) gem dir with __pycache__
+        "PYTHONPATH" => [PYTHON_SHIM_DIR, ENV.fetch("PYTHONPATH", nil)].compact.reject(&:empty?).join(File::PATH_SEPARATOR)
+      }
+    end
+
     def self.do_extruct(meta, uri, content_type: nil, body_prefix: nil)
       if content_type&.match?(BINARY_CONTENT_TYPE)
         meta.comments << "INFO: Skipping extruct for #{uri} — " \
@@ -38,7 +51,7 @@ module FAIRChampionHarvester
       # instead of blocking this thread and leaking a child process forever.
       command_parts = Shellwords.split(FAIRChampionHarvester::Utils::ExtructCommand)
       stdout, stderr, status = Open3.capture3(
-        "timeout", "-k", "5", TIMEOUT_SECONDS.to_s, *command_parts, uri
+        python_env, "timeout", "-k", "5", TIMEOUT_SECONDS.to_s, *command_parts, uri
       )
       warn ""
       # sleep 5
